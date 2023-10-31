@@ -5,6 +5,7 @@
 #include <condition_variable>
 #include <random>
 #include <string>
+#include <queue>
 
 using namespace std;
 
@@ -19,6 +20,8 @@ vector<int> available(NUM_RESOURCES);
 vector<vector<int>> maximum(NUM_CUSTOMERS, vector<int>(NUM_RESOURCES));
 vector<vector<int>> allocation(NUM_CUSTOMERS, vector<int>(NUM_RESOURCES));
 vector<vector<int>> need(NUM_CUSTOMERS, vector<int>(NUM_RESOURCES));
+queue<int> completedProcesses; // Queue to store completed processes
+
 
 bool isSafeState()
 {
@@ -180,13 +183,15 @@ void releaseResource(int customer)
 
 void customerThread(int customer, int iterations)
 {
-    for (int i = 0; i < iterations; ++i)
-    {
+    for (int i = 0; i < iterations; ++i) {
         requestResource(customer);
         this_thread::sleep_for(chrono::seconds(1));
         releaseResource(customer);
         this_thread::sleep_for(chrono::seconds(1));
     }
+
+    // When a customer completes all iterations, add it to the completedProcesses queue
+    completedProcesses.push(customer);
 }
 
 int main()
@@ -195,18 +200,15 @@ int main()
 
     // Prompt the user to input available resources
     cout << "Enter the available resources:" << endl;
-    for (int i = 0; i < NUM_RESOURCES; ++i)
-    {
+    for (int i = 0; i < NUM_RESOURCES; ++i) {
         cout << "Resource " << i << ": ";
         cin >> available[i];
     }
 
     // Prompt the user to input maximum needs for each customer
-    for (int i = 0; i < NUM_CUSTOMERS; ++i)
-    {
+    for (int i = 0; i < NUM_CUSTOMERS; ++i) {
         cout << "Enter maximum needs for Customer " << i << ":" << endl;
-        for (int j = 0; j < NUM_RESOURCES; ++j)
-        {
+        for (int j = 0; j < NUM_RESOURCES; ++j) {
             cout << "Resource " << j << ": ";
             cin >> maximum[i][j];
             allocation[i][j] = 0;
@@ -215,16 +217,21 @@ int main()
     }
 
     vector<thread> threads;
-    for (int i = 0; i < NUM_CUSTOMERS; ++i)
-    {
+    for (int i = 0; i < NUM_CUSTOMERS; ++i) {
         threads.emplace_back(customerThread, i, numIterations);
-        cout << "\n----------------------------\n";
     }
 
-    for (auto &thread : threads)
-    {
+    for (auto& thread : threads) {
         thread.join();
     }
+
+    // Print the sequence of completed processes
+    cout << "Sequence of completed processes: ";
+    while (!completedProcesses.empty()) {
+        cout << "Customer " << completedProcesses.front() << " -> ";
+        completedProcesses.pop();
+    }
+    cout << endl;
 
     return 0;
 }
